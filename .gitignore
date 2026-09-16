@@ -17,9 +17,8 @@ frontend/dist/
 # macOS
 .DS_Store
 
-# Planning material, kept local
-/docs
 /assets
+/docs
 
 /Progress.md
 

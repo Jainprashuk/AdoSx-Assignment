@@ -109,8 +109,15 @@ class Record(models.Model):
     # matches this batch's mapping file. A code absent from locations.csv is a
     # finding, so it must not block the insert.
     location_code_raw = models.CharField(max_length=RAW_LENGTH, blank=True)
+    # SET_NULL, not CASCADE or PROTECT. A record whose location is gone is a
+    # record that cannot be attributed to an org -- which is already a legal
+    # state here, produced by any location code missing from locations.csv.
+    # CASCADE would delete rows to tidy up a mapping, and this project never
+    # deletes a row. PROTECT was tried first and is wrong: deleting a batch
+    # collects its locations before its records, so the protected reference
+    # makes a batch undeletable and the seed command cannot replace itself.
     location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, null=True, blank=True, related_name="records"
+        Location, on_delete=models.SET_NULL, null=True, blank=True, related_name="records"
     )
 
     # Every parsed field is stored twice: the typed value, and the original
@@ -173,7 +180,7 @@ class Entry(models.Model):
     # detectable, and that is only visible if both sides are stored.
     location_code_raw = models.CharField(max_length=RAW_LENGTH, blank=True)
     location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, null=True, blank=True, related_name="entries"
+        Location, on_delete=models.SET_NULL, null=True, blank=True, related_name="entries"
     )
 
     recorded_on = models.DateField(null=True, blank=True)
