@@ -1,0 +1,23 @@
+/* Deliberately minimal. The brief says a plain table is the correct answer and
+   not to spend the day on CSS; this is enough to make the screen readable. */
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #1b2126;
+  background: #f7f8f9;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
