@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Django
+db.sqlite3
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Local environment
+.env
+
+# macOS
+.DS_Store
+
+# Planning material, kept local
+/docs
+
+/Progress.md
