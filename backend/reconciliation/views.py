@@ -4,21 +4,29 @@ The HTTP layer: read a query string, call a service, serialise, return.
 No logic lives here. Scoping is in services.py and the rules are in compare.py,
 so a view that looks thin is a view that is doing its job.
 
-Plain JsonResponse rather than a framework. Three read-only endpoints returning
+Plain JsonResponse rather than a framework. Four endpoints returning
 dictionaries do not need a serialiser layer, and an added dependency is
 something to justify rather than reach for.
 """
 
 from __future__ import annotations
 
+import io
 from decimal import Decimal
 
 from django.http import HttpRequest, JsonResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_http_methods
 
 from .compare import REASONS, Disagreement
+from .ingest import (
+    LOCATIONS_FILE, SYSTEM_A_FILE, SYSTEM_B_FILE, ImportAborted, import_batch,
+)
 from .models import Batch, Entry, ImportIssue, Org, Record
 from .services import REASON_LABELS, ScopeError, filter_and_sort, load_org_view
+
+# The three files an upload must supply, named as they are in the brief.
+UPLOAD_FIELDS = (LOCATIONS_FILE, SYSTEM_A_FILE, SYSTEM_B_FILE)
 
 
 def _money(value: Decimal | None) -> str | None:
@@ -50,10 +58,20 @@ def _disagreement(item: Disagreement) -> dict:
     }
 
 
-@require_GET
+# No CSRF token on the upload. There is no authentication in this project --
+# the brief says to skip it entirely -- so there is no session for a forged
+# request to borrow: the worst a hostile page could do is create a batch, which
+# any visitor can already do through the form. The README says this out loud
+# rather than letting it look like an oversight. Restoring CSRF is one
+# decorator plus sending the cookie back, and that is what the real version
+# would do the moment a login existed.
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def batches(request: HttpRequest) -> JsonResponse:
-    """Every batch, newest first. No org scoping: a batch is a container, and
-    its label and row counts say nothing about any org's data."""
+    """GET: every batch, newest first. POST: load three CSVs as a new batch."""
+    if request.method == "POST":
+        return _create_batch(request)
+
     rows = []
     for batch in Batch.objects.all():
         rows.append({
@@ -65,6 +83,85 @@ def batches(request: HttpRequest) -> JsonResponse:
             "issues": ImportIssue.objects.filter(batch=batch).count(),
         })
     return JsonResponse({"batches": rows})
+
+
+def _create_batch(request: HttpRequest) -> JsonResponse:
+    """Load an uploaded set of three CSVs as a new batch.
+
+    Reuses `import_batch` exactly as the management command does -- which is
+    why ingestion takes file objects rather than paths. The dirty-data
+    behaviour, the row-count invariant and the issue log are the same code
+    here as in the seed, so there is no second importer to keep in agreement.
+
+    A new batch never touches an existing one: batches are closed worlds, so a
+    reviewer's upload cannot disturb the seeded sample data.
+    """
+    missing = [name for name in UPLOAD_FIELDS if name not in request.FILES]
+    if missing:
+        return JsonResponse(
+            {"error": f"all three files are required; missing {', '.join(missing)}"},
+            status=400,
+        )
+
+    # utf-8-sig strips a byte-order mark from a spreadsheet export; newline=""
+    # leaves line endings to the csv module, which is what handles a quoted
+    # value containing a newline.
+    handles = {
+        name: io.TextIOWrapper(request.FILES[name].file, encoding="utf-8-sig", newline="")
+        for name in UPLOAD_FIELDS
+    }
+    # Just "Uploaded". The time is already on the batch as `created_at`, and
+    # the frontend renders it in the viewer's own timezone -- a timestamp
+    # baked into the label here would be the server's timezone (UTC), which is
+    # the wrong time for whoever is reading it.
+    label = "Uploaded"
+
+    try:
+        summary = import_batch(
+            label,
+            handles[LOCATIONS_FILE],
+            handles[SYSTEM_A_FILE],
+            handles[SYSTEM_B_FILE],
+        )
+    except ImportAborted as exc:
+        # The transaction has already rolled back, so there is no half-loaded
+        # batch to clean up. 400 rather than 500: the upload is the problem,
+        # and the message says which line of which file.
+        return JsonResponse({"error": str(exc)}, status=400)
+    except UnicodeDecodeError:
+        return JsonResponse(
+            {"error": "one of the files is not text this importer can read (expected UTF-8 CSV)"},
+            status=400,
+        )
+
+    batch = Batch.objects.get(pk=summary.batch_id)
+    return JsonResponse(
+        {
+            "batch": {"id": batch.pk, "label": batch.label},
+            "files": [
+                {
+                    "name": file_summary.name,
+                    "rows_read": file_summary.rows_read,
+                    "rows_written": file_summary.rows_written,
+                    "issues": file_summary.issues,
+                }
+                for file_summary in summary.files
+            ],
+            # Every logged problem, not a count. The claim is that nothing was
+            # dropped, and the evidence for it is the list.
+            "issues": [
+                {
+                    "source_file": issue.source_file,
+                    "line_number": issue.line_number,
+                    "field": issue.field,
+                    "raw_value": issue.raw_value,
+                    "problem": issue.problem,
+                }
+                for issue in ImportIssue.objects.filter(batch=batch)
+            ],
+        },
+        status=201,
+    )
 
 
 @require_GET

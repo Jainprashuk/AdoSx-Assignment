@@ -13,7 +13,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { fetchBatches, fetchDiscrepancies, fetchOrgs } from './api'
 import DisagreementTable from './DisagreementTable'
 import ImportHealth from './ImportHealth'
+import LoadData from './LoadData'
 import ReasonFilter from './ReasonFilter'
+import { batchLabel } from './format'
 
 export default function App() {
   const [batches, setBatches] = useState([])
@@ -24,16 +26,26 @@ export default function App() {
   const [sort, setSort] = useState(null)
   const [view, setView] = useState(null)
   const [error, setError] = useState(null)
+  const [screen, setScreen] = useState('review')
 
-  // Newest batch first, so the default selection is the most recent import.
-  useEffect(() => {
+  // Newest batch first, so the default selection is the most recent import --
+  // which, after an upload, is the batch just created.
+  //
+  // Goes through selectBatch rather than setBatch: an org id belongs to one
+  // batch, so changing the batch without clearing the org sends a request
+  // pairing the new batch with the previous batch's org. The API refuses that
+  // pairing, which is correct, but the refusal is a visible error for
+  // something the user never did.
+  const loadBatches = useCallback(() => {
     fetchBatches()
       .then((data) => {
         setBatches(data.batches)
-        setBatch(data.batches[0]?.id ?? null)
+        selectBatch(data.batches[0]?.id ?? null)
       })
       .catch((e) => setError(e.message))
   }, [])
+
+  useEffect(loadBatches, [loadBatches])
 
   // Orgs belong to a batch, so the list is refetched whenever the batch
   // changes and the first one is selected.
@@ -87,14 +99,43 @@ export default function App() {
       <header>
         <h1>Reconciliation</h1>
         <p className="sub">Records where system A and system B do not agree.</p>
+        <nav>
+          <button
+            type="button"
+            aria-current={screen === 'review'}
+            onClick={() => setScreen('review')}
+          >
+            Disagreements
+          </button>
+          <button
+            type="button"
+            aria-current={screen === 'load'}
+            onClick={() => setScreen('load')}
+          >
+            Load data
+          </button>
+        </nav>
       </header>
 
+      {screen === 'load' && (
+        <LoadData
+          // Refresh the selector so the new batch is there and selected -- it
+          // sorts first, being the newest, and the existing batches are
+          // untouched. The screen deliberately does not switch: the import
+          // summary is the point of the upload, and navigating away from it
+          // would throw away the evidence that nothing was dropped.
+          onLoaded={loadBatches}
+        />
+      )}
+
+      {screen === 'review' && (
+      <>
       <div className="controls">
         <label>
           Import batch
           <select value={batch ?? ''} onChange={(e) => selectBatch(Number(e.target.value))}>
             {batches.map((item) => (
-              <option key={item.id} value={item.id}>{item.label}</option>
+              <option key={item.id} value={item.id}>{batchLabel(item)}</option>
             ))}
           </select>
         </label>
@@ -132,6 +173,8 @@ export default function App() {
           />
           <ImportHealth issues={current.issues} />
         </>
+      )}
+      </>
       )}
     </main>
   )

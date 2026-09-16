@@ -32,6 +32,29 @@ async function get(path, params = {}) {
 
 export const fetchBatches = () => get('/batches/')
 
+/**
+ * Upload three CSVs as a new batch.
+ *
+ * multipart/form-data with no Content-Type set by hand: the browser has to add
+ * the multipart boundary itself, and setting the header manually omits it.
+ * The field names are the filenames the brief uses, which is what the backend
+ * looks for.
+ */
+export async function uploadBatch(files) {
+  const form = new FormData()
+  form.append('locations.csv', files.locations)
+  form.append('system_a.csv', files.systemA)
+  form.append('system_b.csv', files.systemB)
+
+  const response = await fetch(`${API}/batches/`, { method: 'POST', body: form })
+  const body = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(body.error || `Upload failed (${response.status})`)
+  }
+  return body
+}
+
 export const fetchOrgs = (batch) => get('/orgs/', { batch })
 
 // batch and org are required by the API. Passing either as undefined gets a 400

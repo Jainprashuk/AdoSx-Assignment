@@ -43,3 +43,18 @@ export function valueCell(value, raw) {
   }
   return { state: 'absent', text: '—' }
 }
+
+/**
+ * A batch's timestamp, in the viewer's timezone.
+ *
+ * The backend stores the instant and sends it as ISO 8601 with an offset; the
+ * label is formatted here rather than server-side because the server runs in
+ * UTC and a timestamp baked into the label would show the wrong local time to
+ * whoever is reading it.
+ */
+export function batchLabel(batch) {
+  const when = new Date(batch.created_at)
+  return `${batch.label} — ${when.toLocaleString(undefined, {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })}`
+}
