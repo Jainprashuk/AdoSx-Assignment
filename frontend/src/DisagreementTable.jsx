@@ -23,65 +23,97 @@ function ValueCell({ value, raw }) {
   return cell.text
 }
 
-export default function DisagreementTable({ rows, sort, onSortChange }) {
+export default function DisagreementTable({ rows, sort, reason, onSortChange, onClearFilter }) {
   if (rows.length === 0) {
-    return <p className="empty">No disagreements match this filter.</p>
+    // Two different empty results. "Nothing matches this filter" with no way
+    // back to the full list is the version that strands people, so when a
+    // filter is what emptied the table the way out is in the message.
+    return (
+      <div className="panel">
+        {reason ? (
+          <>
+            <p><strong>No rows for this reason</strong></p>
+            <p>
+              This org has no disagreements of that kind.{' '}
+              <button type="button" className="link" onClick={onClearFilter}>Show all reasons</button>
+            </p>
+          </>
+        ) : (
+          <>
+            <p><strong>No disagreements</strong></p>
+            <p>Both systems agree on every record in this org for this batch.</p>
+          </>
+        )}
+      </div>
+    )
   }
 
   // Three-state toggle: ascending, descending, then back to the natural order
   // grouped by reason, which is the more useful default for scanning.
   const nextSort = sort === 'value' ? '-value' : sort === '-value' ? null : 'value'
-  const caret = sort === 'value' ? ' ↑' : sort === '-value' ? ' ↓' : ''
+  const ariaSort = sort === 'value' ? 'ascending' : sort === '-value' ? 'descending' : 'none'
+  const caret = sort === 'value' ? '▲' : sort === '-value' ? '▼' : ''
 
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>Record</th>
-          <th>Reason</th>
-          <th className="num sortable">
-            <button type="button" onClick={() => onSortChange(nextSort)}>
-              System A{caret}
-            </button>
-          </th>
-          <th className="num">System B</th>
-          <th className="num">Difference</th>
-          <th>Location</th>
-          <th>Entries</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          // An orphan entry has no record, so the reference it was written with
-          // is the only identifier available -- and the one the reviewer needs.
-          <tr key={`${row.reason}:${row.key}`}>
-            <td className="id">
-              {row.record_id ?? <span className="absent" title="no such record">{row.key}</span>}
-            </td>
-            <td>
-              <span className={`tag tag-${row.reason}`}>{row.reason_label}</span>
-              <div className="detail">{row.detail}</div>
-            </td>
-            <td className="num"><ValueCell value={row.a_value} raw={row.a_value_raw} /></td>
-            <td className="num"><ValueCell value={row.b_value} raw={row.b_value_raw} /></td>
-            {/* A difference of zero is not a gap: the cross-org finding has
-                matching values, and colouring its 0.00 like a shortfall would
-                say the amounts disagree when the whole point is that they do
-                not. */}
-            <td className={isZeroAmount(row.difference) ? 'num' : 'num difference'}>
-              {row.difference === null
-                ? <span className="absent">—</span>
-                : groupDigits(row.difference)}
-            </td>
-            <td className="id">{row.location_code}</td>
-            <td className="id entries">
-              {row.entry_ids.length === 0
-                ? <span className="absent">none</span>
-                : row.entry_ids.map((id) => <div key={id}>{id}</div>)}
-            </td>
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Record</th>
+            <th>Reason</th>
+            <th className="num sortable" aria-sort={ariaSort}>
+              <button
+                type="button"
+                onClick={() => onSortChange(nextSort)}
+                title={
+                  nextSort === 'value' ? 'Sort by system A, lowest first'
+                    : nextSort === '-value' ? 'Sort by system A, highest first'
+                      : 'Back to the default order, grouped by reason'
+                }
+              >
+                System A
+                {caret && <span className="caret" aria-hidden="true">{caret}</span>}
+              </button>
+            </th>
+            <th className="num">System B</th>
+            <th className="num">Difference</th>
+            <th>Location</th>
+            <th>Entries</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            // An orphan entry has no record, so the reference it was written with
+            // is the only identifier available -- and the one the reviewer needs.
+            <tr key={`${row.reason}:${row.key}`}>
+              <td className="id">
+                {row.record_id ?? <span className="absent" title="no such record">{row.key}</span>}
+              </td>
+              <td>
+                <span className={`tag tag-${row.reason}`}>{row.reason_label}</span>
+                <div className="detail">{row.detail}</div>
+              </td>
+              <td className="num"><ValueCell value={row.a_value} raw={row.a_value_raw} /></td>
+              <td className="num"><ValueCell value={row.b_value} raw={row.b_value_raw} /></td>
+              {/* A difference of zero is not a gap: the cross-org finding has
+                  matching values, and colouring its 0.00 like a shortfall would
+                  say the amounts disagree when the whole point is that they do
+                  not. */}
+              <td className={isZeroAmount(row.difference) ? 'num' : 'num difference'}>
+                {row.difference === null
+                  ? <span className="absent">—</span>
+                  : groupDigits(row.difference)}
+              </td>
+              <td className="id">{row.location_code}</td>
+              <td className="id entries">
+                {row.entry_ids.length === 0
+                  ? <span className="absent">none</span>
+                  : row.entry_ids.map((id) => <div key={id}>{id}</div>)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

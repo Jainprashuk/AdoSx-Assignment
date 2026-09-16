@@ -1,151 +1,789 @@
-/* Plain and legible. The brief says a plain table is the correct answer and not
-   to spend the day on CSS, so this does three things only: make money readable
-   (monospaced, right-aligned, so digits line up), make the three value states
-   visually distinct, and keep the table scannable. */
+/* Reconciliation — design tokens and component styles.
+ *
+ * The table is still the point, so nothing here decorates at the table's
+ * expense. What the tokens buy is consistency: one type scale, one spacing
+ * step, one radius set, and every colour named by role rather than by hue, so
+ * the dark theme is the same stylesheet with fifteen values swapped.
+ *
+ * Money stays monospaced and right-aligned throughout. That is not a theme
+ * choice -- it is what makes a difference between two columns visible without
+ * reading the digits. */
 
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 14px;
-  color: #1b2126;
-  background: #f7f8f9;
-  --line: #dfe3e8;
-  --muted: #6b757d;
-  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Type */
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --text-xs: 11.5px;
+  --text-sm: 12.5px;
+  --text-base: 13.5px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 26px;
+
+  /* Space — a 4px step, used everywhere so vertical rhythm holds up */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  /* Shape */
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+
+  /* Surfaces and ink */
+  --canvas: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #f8fafb;
+  --surface-3: #eef1f4;
+  --ink: #131a21;
+  --ink-2: #47535e;
+  --ink-3: #6d7a86;
+  --line: #e2e7ec;
+  --line-2: #cfd7de;
+
+  /* Accent — one, used for selection and focus and nothing else */
+  --accent: #2e5cd4;
+  --accent-hover: #2450c2;
+  --accent-soft: #eaf0fd;
+  --accent-ink: #ffffff;
+  --focus: #2e5cd4;
+
+  /* Status */
+  --danger: #a3302c;
+  --danger-soft: #fceceb;
+  --warn: #8a5a12;
+  --warn-soft: #fbf1dd;
+  --ok: #1f6b4a;
+
+  /* Reason tags — background / foreground pairs */
+  --t-mismatch-bg: #fbe9e7;      --t-mismatch-fg: #93332f;
+  --t-missing-bg: #e5eff6;       --t-missing-fg: #2b6a8c;
+  --t-orphan-bg: #fbf0dc;        --t-orphan-fg: #8a5a12;
+  --t-duplicate-bg: #edeaf8;     --t-duplicate-fg: #56458c;
+  --t-uncomparable-bg: #eceff2;  --t-uncomparable-fg: #566169;
+  --t-crossorg-bg: #fce7ee;      --t-crossorg-fg: #8c2d54;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 32, 0.05);
+  --shadow-md: 0 1px 3px rgba(16, 24, 32, 0.07), 0 6px 16px -6px rgba(16, 24, 32, 0.09);
+
+  font-family: var(--font);
+  font-size: var(--text-base);
+  color: var(--ink);
+  background: var(--canvas);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
 }
 
-body { margin: 0; }
+/* The same stylesheet, darker. Roles keep their meaning; only the values move,
+   and the status hues are lifted in lightness so they still read on a dark
+   surface rather than going muddy. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1a212a;
+    --surface-3: #212932;
+    --ink: #e6ecf2;
+    --ink-2: #aab6c2;
+    --ink-3: #8593a0;
+    --line: #262e38;
+    --line-2: #36414d;
+
+    --accent: #6d97f5;
+    --accent-hover: #83a7f7;
+    --accent-soft: #1b2739;
+    --accent-ink: #0d1117;
+    --focus: #6d97f5;
+
+    --danger: #f08b85;
+    --danger-soft: #2c1a1a;
+    --warn: #e0b060;
+    --warn-soft: #2b2312;
+    --ok: #62c295;
+
+    --t-mismatch-bg: #2e1c1c;      --t-mismatch-fg: #f0948d;
+    --t-missing-bg: #142833;       --t-missing-fg: #78bee2;
+    --t-orphan-bg: #2b2312;        --t-orphan-fg: #e0b060;
+    --t-duplicate-bg: #221e33;     --t-duplicate-fg: #b0a0ee;
+    --t-uncomparable-bg: #222a33;  --t-uncomparable-fg: #9aa7b3;
+    --t-crossorg-bg: #2e1723;      --t-crossorg-fg: #ef8fb4;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.45), 0 6px 16px -6px rgba(0, 0, 0, 0.6);
+
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* One focus treatment for every interactive element, so keyboard users get the
+   same affordance everywhere instead of the browser default on some controls
+   and nothing on the ones with custom backgrounds. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------- layout */
 
 main {
-  max-width: 1180px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: var(--s6) var(--s5) var(--s7);
 }
 
-header { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
-h1 { font-size: 18px; margin: 0; }
-.sub { color: var(--muted); margin: 4px 0 0; }
+@media (max-width: 640px) {
+  main { padding: var(--s5) var(--s4) var(--s6); }
+}
 
+/* ---------------------------------------------------------------- header */
+
+header { margin-bottom: var(--s5); }
+
+/* Top-aligned, not centred: the subtitle wraps to two lines on a narrow
+   screen and a centred mark then floats between them. */
+.brand { display: flex; align-items: flex-start; gap: var(--s3); }
+
+/* A mark rather than an icon font: two overlapping rules that do not line up,
+   which is the whole application in nine pixels. */
+.mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 1px;
+  box-shadow: var(--shadow-sm);
+}
+
+h1 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.sub {
+  color: var(--ink-3);
+  margin: var(--s1) 0 0;
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+nav {
+  display: flex;
+  gap: var(--s1);
+  margin-top: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+nav button {
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: 500;
+  padding: var(--s2) var(--s3);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  margin-bottom: -1px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+nav button:hover { color: var(--ink); }
+nav button[aria-current="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---------------------------------------------------------------- guide */
+
+/* Reuses the disclosure behaviour of .health but sits at the top of the page,
+   so it gets its own quieter surface: it must be findable without competing
+   with the count and the table for attention. */
+.guide {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--s4);
+  overflow: hidden;
+}
+.guide summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--ink-2);
+  list-style: none;
+}
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary:hover { background: var(--surface-2); color: var(--ink); }
+.guide[open] summary { border-bottom: 1px solid var(--line); }
+
+.guide-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+/* A measure, not the full 1240px: prose set across the whole page width is
+   the reason people stop reading explanations. */
+.guide-body { padding: var(--s4) var(--s5) var(--s5); max-width: 78ch; }
+.guide-body p { margin: 0 0 var(--s3); color: var(--ink-2); line-height: 1.6; }
+.guide-body h3 {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: var(--s5) 0 var(--s3);
+}
+.guide-body strong { color: var(--ink); font-weight: 600; }
+
+.guide-steps { margin: 0; padding-left: var(--s5); color: var(--ink-2); }
+.guide-steps li { margin-bottom: var(--s2); line-height: 1.6; }
+.guide-steps .count {
+  font-family: var(--mono);
+  background: var(--surface-3);
+  padding: 0 var(--s1);
+  border-radius: var(--r-sm);
+}
+
+/* Each entry is its sample and its meaning on one row, so both glossaries are
+   looked up by the same chip or cell that appears in the table. */
+.guide-reasons,
+.guide-states { margin: 0; display: grid; gap: var(--s3); }
+.guide-reasons > div,
+.guide-states > div {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: var(--s4);
+  align-items: start;
+}
+.guide-reasons dt,
+.guide-states dt { min-width: 0; }
+.guide-reasons dd,
+.guide-states dd { margin: 0; color: var(--ink-2); line-height: 1.6; }
+
+.guide-states .num { color: var(--ink); display: inline-block; }
+
+.guide-note {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  border-left: 2px solid var(--line-2);
+  padding-left: var(--s3);
+  margin-top: var(--s4) !important;
+}
+
+@media (max-width: 640px) {
+  .guide-body { padding: var(--s4); }
+  .guide-reasons > div,
+  .guide-states > div { grid-template-columns: 1fr; gap: var(--s1); }
+}
+
+/* ---------------------------------------------------------------- controls */
+
+/* The selectors and the count sit on one raised card. The pairing of batch and
+   org is the scope of everything below it, so it reads as one statement of
+   "whose rows these are" rather than as two loose dropdowns. */
 .controls {
   display: flex;
-  gap: 20px;
+  gap: var(--s5);
   align-items: flex-end;
   flex-wrap: wrap;
-  padding: 16px 0;
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--s4);
 }
 .controls label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--muted);
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
-select {
-  font-size: 14px;
-  padding: 6px 8px;
-  min-width: 200px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #fff;
-  color: inherit;
-}
-.total { margin-left: auto; text-align: right; }
-.total strong { display: block; font-family: var(--mono); font-size: 24px; font-weight: 500; }
-.total span { font-size: 12px; color: var(--muted); }
 
-.chips { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 14px; }
+select {
+  font: inherit;
+  font-size: var(--text-base);
+  padding: var(--s2) var(--s5) var(--s2) var(--s3);
+  min-width: 220px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  appearance: none;
+  /* The caret is drawn rather than loaded: an inline stroke keeps the control
+     one file and lets it follow the text colour in both themes. */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 16px center, right 11px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+select:hover:not(:disabled) { border-color: var(--ink-3); }
+select:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.total {
+  margin-left: auto;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.total strong {
+  font-family: var(--mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.total span {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+@media (max-width: 640px) {
+  .controls { gap: var(--s3); }
+  .controls label { width: 100%; }
+  select { min-width: 0; width: 100%; }
+  .total { margin-left: 0; text-align: left; align-items: flex-start; }
+}
+
+/* ---------------------------------------------------------------- chips */
+
+.chips { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s3); }
 .chip {
   font: inherit;
-  font-size: 12.5px;
-  padding: 5px 11px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: #fff;
-  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) var(--s3);
+  height: 28px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
-.chip[aria-pressed="true"] { background: #1b2126; border-color: #1b2126; color: #fff; }
+.chip:hover:not(:disabled):not([aria-pressed="true"]) {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
 .chip:disabled { opacity: 0.45; cursor: not-allowed; }
-.chip .count { font-family: var(--mono); opacity: 0.75; }
+.chip .count {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
 
-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); }
-th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid #eceff2; vertical-align: top; }
-thead th { font-size: 12px; font-weight: 500; color: var(--muted); background: #f2f4f6; white-space: nowrap; }
+/* ---------------------------------------------------------------- table */
+
+/* The table gets its own scroller so seven columns on a narrow screen scroll
+   sideways instead of squeezing the amounts into two lines each. */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
+
+th, td {
+  text-align: left;
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+/* Sticky, because scrolling past row forty and losing which column is system A
+   is the fastest way to misread a reconciliation. */
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line-2);
+}
+
+tbody tr { transition: background 100ms ease; }
+tbody tr:hover { background: var(--surface-2); }
 tbody tr:last-child td { border-bottom: none; }
 
-/* Money: monospaced and right-aligned so the digits line up column to column,
-   which is what makes a difference visible at a glance. */
-.num { font-family: var(--mono); font-size: 13px; text-align: right; white-space: nowrap; }
-.id { font-family: var(--mono); font-size: 12.5px; }
+.num {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+/* Nowrap: a record id broken across two lines ("REC-" / "1015") stops being
+   one token to scan for, which is the only job this column has. The wrapper
+   scrolls instead. */
+.id {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
 .entries div + div { margin-top: 2px; }
-.difference { color: #93332f; }
+.difference { color: var(--danger); font-weight: 500; }
 
 /* The three value states, deliberately distinguishable. */
-.absent { color: #98a1a8; }
-.unreadable { color: #8a5a12; background: #fbf0dc; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); }
-
-.detail { font-size: 12px; color: var(--muted); margin-top: 3px; max-width: 42ch; }
-
-.tag { display: inline-block; font-size: 11.5px; padding: 2px 7px; border-radius: 3px; white-space: nowrap; background: #eef0f2; }
-.tag-VALUE_MISMATCH { background: #fbe9e7; color: #93332f; }
-.tag-MISSING_IN_B { background: #e7f0f5; color: #2f6f8f; }
-.tag-ORPHAN_ENTRY { background: #fbf0dc; color: #8a5a12; }
-.tag-DUPLICATE_ENTRY { background: #eeebf8; color: #5a4a8f; }
-.tag-UNCOMPARABLE { background: #eef0f2; color: #5b666f; }
-.tag-CROSS_ORG_ENTRY { background: #fde8ef; color: #8f2f56; }
-
-.sortable button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
-
-.empty, .health-empty { color: var(--muted); padding: 28px 4px; }
-.error { color: #93332f; background: #fbe9e7; padding: 10px 12px; border-radius: 4px; }
-
-.health { margin-top: 20px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
-.health summary { padding: 10px 12px; cursor: pointer; color: var(--muted); }
-.health ul { list-style: none; margin: 0; padding: 0 12px 10px; }
-.health li { display: flex; gap: 12px; padding: 5px 0; font-size: 13px; flex-wrap: wrap; }
-.health code { font-family: var(--mono); background: #f2f4f6; padding: 1px 4px; border-radius: 3px; }
-
-/* Navigation between the two screens */
-nav { display: flex; gap: 4px; margin-top: 12px; }
-nav button {
-  font: inherit;
-  font-size: 13px;
-  padding: 5px 10px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
+.absent { color: var(--ink-3); opacity: 0.8; }
+.unreadable {
+  color: var(--warn);
+  background: var(--warn-soft);
+  padding: 1px var(--s1);
+  border-radius: var(--r-sm);
+  font-family: var(--mono);
 }
-nav button[aria-current="true"] { color: #1b2126; border-bottom-color: #1b2126; }
 
-/* Load data */
-.load { max-width: 640px; padding-top: 18px; }
-.load h2 { font-size: 15px; margin: 0 0 4px; }
-.load h3 { font-size: 13px; margin: 18px 0 8px; }
-.filerow {
+.detail {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-top: var(--s1);
+  max-width: 44ch;
+  line-height: 1.45;
+}
+
+.tag {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px var(--s2);
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+.tag-VALUE_MISMATCH   { background: var(--t-mismatch-bg);     color: var(--t-mismatch-fg); }
+.tag-MISSING_IN_B     { background: var(--t-missing-bg);      color: var(--t-missing-fg); }
+.tag-ORPHAN_ENTRY     { background: var(--t-orphan-bg);       color: var(--t-orphan-fg); }
+.tag-DUPLICATE_ENTRY  { background: var(--t-duplicate-bg);    color: var(--t-duplicate-fg); }
+.tag-UNCOMPARABLE     { background: var(--t-uncomparable-bg); color: var(--t-uncomparable-fg); }
+.tag-CROSS_ORG_ENTRY  { background: var(--t-crossorg-bg);     color: var(--t-crossorg-fg); }
+
+/* The sortable header is a button filling its cell, so the whole heading is the
+   target rather than the six characters of the label. */
+.sortable { padding: 0; }
+.sortable button {
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: var(--s3) var(--s4);
+  width: 100%;
+  text-align: right;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s1);
+  border-radius: 0;
+}
+.sortable button:hover { color: var(--ink); }
+.sortable[aria-sort]:not([aria-sort="none"]) button { color: var(--accent); }
+.caret { font-size: 9px; line-height: 1; }
+
+/* ---------------------------------------------------------------- states */
+
+/* Empty, loading and error all sit in the same box as the table would, so the
+   page does not jump by three hundred pixels between states. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--s7) var(--s5);
+  text-align: center;
+}
+.panel p { margin: 0; color: var(--ink-3); }
+.panel p + p { margin-top: var(--s2); }
+.panel strong { color: var(--ink); font-weight: 600; display: block; margin-bottom: var(--s1); }
+
+.link {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link:hover { color: var(--accent-hover); }
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s4);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+.error .link { color: inherit; margin-left: auto; white-space: nowrap; }
+
+/* Skeleton rows rather than a spinner: the shape of what is coming is already
+   on screen, so the answer arrives in place instead of replacing a blank. */
+.skeleton { padding: var(--s3) var(--s4); }
+.skeleton-row {
+  height: 14px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 37%, var(--surface-3) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  margin: var(--s4) 0;
+}
+.skeleton-row:nth-child(2n) { width: 84%; }
+.skeleton-row:nth-child(3n) { width: 68%; }
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+.busy { opacity: 0.55; transition: opacity 120ms ease; pointer-events: none; }
+
+/* ---------------------------------------------------------------- health */
+
+.health {
+  margin-top: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.health summary {
+  padding: var(--s3) var(--s4);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--text-base);
+  list-style: none;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 11px 0;
-  border-bottom: 1px solid #eceff2;
+  gap: var(--s2);
 }
-.filerow .id { min-width: 120px; }
-.filerow input[type=file] { font: inherit; font-size: 12.5px; color: var(--muted); min-width: 0; flex: 1; }
-.actions { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
+.health summary::-webkit-details-marker { display: none; }
+.health summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  opacity: 0.6;
+  transition: transform 140ms ease;
+}
+.health[open] summary::before { transform: rotate(90deg); }
+.health summary:hover { background: var(--surface-2); }
+.health summary strong { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.health ul { list-style: none; margin: 0; padding: 0 var(--s4) var(--s3); border-top: 1px solid var(--line); }
+.health li,
+.issues li {
+  display: flex;
+  gap: var(--s4);
+  padding: var(--s2) 0;
+  font-size: var(--text-base);
+  flex-wrap: wrap;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--line);
+}
+.health li:last-child, .issues li:last-child { border-bottom: none; }
+.health li { padding-top: var(--s2); }
+.health ul li:first-child { padding-top: var(--s3); }
+
+code {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  background: var(--surface-3);
+  padding: 1px var(--s1);
+  border-radius: var(--r-sm);
+}
+
+.health-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--ok);
+  font-size: var(--text-base);
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+/* ---------------------------------------------------------------- load */
+
+.load { max-width: 680px; }
+.load h2 { font-size: var(--text-md); font-weight: 600; margin: 0 0 var(--s2); }
+.load .sub { line-height: 1.6; }
+.load .sub + .sub { margin-top: var(--s2); }
+.load .sub strong { color: var(--ink); font-weight: 600; }
+.load h3 { font-size: var(--text-base); font-weight: 600; margin: 0 0 var(--s3); }
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s5) 0;
+}
+
+/* A drop target per file, not one for all three: the three files are distinct
+   and land in named slots, so dropping onto the wrong one has to be impossible
+   rather than merely discouraged. */
+.slot {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.slot:hover { border-color: var(--ink-3); }
+.slot.filled { border-style: solid; border-color: var(--line); }
+.slot.over { border-color: var(--accent); background: var(--accent-soft); border-style: solid; }
+
+.slot-name { font-family: var(--mono); font-size: var(--text-sm); min-width: 130px; color: var(--ink); }
+.slot-state { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--ink-3); }
+.slot-file {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 500;
+}
+.slot-size { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* The real input covers its label so a click anywhere in the row opens the
+   picker, while the label stays a real <label> for the keyboard. */
+.slot-pick {
+  position: relative;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: var(--s1) var(--s2);
+  border-radius: var(--r-sm);
+}
+.slot-pick:hover { background: var(--accent-soft); }
+.slot-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.slot-pick:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.slot-clear {
+  font: inherit;
+  font-size: var(--text-sm);
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: var(--s1) var(--s2);
+  border-radius: var(--r-sm);
+}
+.slot-clear:hover { color: var(--danger); background: var(--danger-soft); }
+
+.actions { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
 .primary {
   font: inherit;
-  font-size: 13.5px;
-  padding: 8px 15px;
+  font-size: var(--text-base);
+  font-weight: 500;
+  padding: var(--s2) var(--s4);
+  height: 34px;
   border: none;
-  border-radius: 4px;
-  background: #1b2126;
-  color: #fff;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--accent-ink);
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background 120ms ease;
 }
-.primary:disabled { opacity: 0.4; cursor: not-allowed; }
-.result { margin-top: 26px; }
-.result table { margin-bottom: 14px; }
+.primary:hover:not(:disabled) { background: var(--accent-hover); }
+.primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+.result { margin-top: var(--s6); }
+.result h3 { margin-bottom: var(--s3); }
+.result .table-wrap { margin-bottom: var(--s4); }
 .issues { list-style: none; margin: 0; padding: 0; }
-.issues li { display: flex; gap: 12px; padding: 5px 0; font-size: 13px; flex-wrap: wrap; }
-.issues code { font-family: var(--mono); background: #f2f4f6; padding: 1px 4px; border-radius: 3px; }
-.issues .id { min-width: 150px; }
+.issues .id { min-width: 160px; }
+
+.ok-note { display: flex; align-items: center; gap: var(--s2); color: var(--ok); font-size: var(--text-base); }

@@ -45,6 +45,18 @@ export function valueCell(value, raw) {
 }
 
 /**
+ * A chosen file's size, for the upload screen.
+ *
+ * Rounded and approximate on purpose: it is there so someone can tell a 4 KB
+ * file apart from a 400 KB one before uploading, not to audit a byte count.
+ */
+export function fileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/**
  * A batch's timestamp, in the viewer's timezone.
  *
  * The backend stores the instant and sends it as ISO 8601 with an offset; the

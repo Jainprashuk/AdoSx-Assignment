@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchBatches, fetchDiscrepancies, fetchOrgs } from './api'
 import DisagreementTable from './DisagreementTable'
+import Guide from './Guide'
 import ImportHealth from './ImportHealth'
 import LoadData from './LoadData'
 import ReasonFilter from './ReasonFilter'
@@ -27,6 +28,18 @@ export default function App() {
   const [view, setView] = useState(null)
   const [error, setError] = useState(null)
   const [screen, setScreen] = useState('review')
+  // Two distinct waits, because they mean different things on screen: the
+  // batch list has not arrived yet, or rows are being fetched. Collapsing them
+  // into one would show "no batches yet" during the first half second, which
+  // is a statement about the data rather than about the network.
+  const [booting, setBooting] = useState(true)
+  // Which selection the response on screen belongs to. Derived rather than a
+  // flag set at the top of the fetch: "loading" is exactly "what is shown is
+  // not what is selected", and computing it from the two says so directly
+  // instead of leaving a boolean to be turned off on every exit path.
+  const [settled, setSettled] = useState(null)
+  const wanted = `${batch}:${org}:${reason ?? ''}:${sort ?? ''}`
+  const loading = batch !== null && org !== null && settled !== wanted
 
   // Newest batch first, so the default selection is the most recent import --
   // which, after an upload, is the batch just created.
@@ -41,8 +54,10 @@ export default function App() {
       .then((data) => {
         setBatches(data.batches)
         selectBatch(data.batches[0]?.id ?? null)
+        setError(null)
       })
       .catch((e) => setError(e.message))
+      .finally(() => setBooting(false))
   }, [])
 
   useEffect(loadBatches, [loadBatches])
@@ -61,11 +76,21 @@ export default function App() {
 
   const load = useCallback(() => {
     if (batch === null || org === null) return
+    // Every fetch is numbered, and only the newest one is allowed to write.
+    // Switching org twice quickly otherwise lets the first response land after
+    // the second and paint one tenant's rows under the other's name.
+    let current = true
+    const key = `${batch}:${org}:${reason ?? ''}:${sort ?? ''}`
     fetchDiscrepancies({ batch, org, reason, sort })
       // The error clears on success rather than before the request, so a
       // failed load leaves its message on screen until something works.
-      .then((data) => { setView(data); setError(null) })
-      .catch((e) => setError(e.message))
+      .then((data) => { if (current) { setView(data); setError(null) } })
+      .catch((e) => { if (current) setError(e.message) })
+      // Settled on failure too. A request that errored is finished waiting,
+      // and leaving the skeleton up under the error message would say it is
+      // still trying when nothing is in flight.
+      .finally(() => { if (current) setSettled(key) })
+    return () => { current = false }
   }, [batch, org, reason, sort])
 
   useEffect(load, [load])
@@ -93,13 +118,26 @@ export default function App() {
   // Belt and braces: never render a response that describes a different org
   // than the one currently selected.
   const current = view && view.org.id === org ? view : null
+  const noBatches = !booting && batches.length === 0
 
   return (
     <main>
       <header>
-        <h1>Reconciliation</h1>
-        <p className="sub">Records where system A and system B do not agree.</p>
-        <nav>
+        <div className="brand">
+          <span className="mark" aria-hidden="true">
+            {/* Two rules that do not line up: the application, in nine pixels. */}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M2 5.5h9M8.5 3 11 5.5 8.5 8" />
+              <path d="M14 10.5H5M7.5 8 5 10.5 7.5 13" />
+            </svg>
+          </span>
+          <div>
+            <h1>Reconciliation</h1>
+            <p className="sub">Records where system A and system B do not agree.</p>
+          </div>
+        </div>
+
+        <nav aria-label="Screens">
           <button
             type="button"
             aria-current={screen === 'review'}
@@ -117,6 +155,16 @@ export default function App() {
         </nav>
       </header>
 
+      {/* Outside both screens: a batch list that failed to load is the reason
+          the upload screen's selector is empty too, so the message has to
+          survive switching screens. */}
+      {error && (
+        <p className="error" role="alert">
+          <span>{error}</span>
+          <button type="button" className="link" onClick={loadBatches}>Retry</button>
+        </p>
+      )}
+
       {screen === 'load' && (
         <LoadData
           // Refresh the selector so the new batch is there and selected -- it
@@ -130,10 +178,32 @@ export default function App() {
 
       {screen === 'review' && (
       <>
+      {/* Above the controls rather than below the table: it explains the
+          controls, and an explanation you reach by scrolling past the thing it
+          explains has already failed. Collapsed, so it costs one line. */}
+      <Guide counts={current?.counts} />
+
+      {noBatches ? (
+        // Nothing has been imported yet. Saying so, and pointing at the screen
+        // that fixes it, beats two empty dropdowns above an empty table.
+        <div className="panel">
+          <p><strong>No import batches yet</strong></p>
+          <p>
+            Load the three CSVs on the{' '}
+            <button type="button" className="link" onClick={() => setScreen('load')}>Load data</button>
+            {' '}screen to compare them.
+          </p>
+        </div>
+      ) : (
+      <>
       <div className="controls">
         <label>
           Import batch
-          <select value={batch ?? ''} onChange={(e) => selectBatch(Number(e.target.value))}>
+          <select
+            value={batch ?? ''}
+            onChange={(e) => selectBatch(Number(e.target.value))}
+            disabled={batches.length === 0}
+          >
             {batches.map((item) => (
               <option key={item.id} value={item.id}>{batchLabel(item)}</option>
             ))}
@@ -153,26 +223,49 @@ export default function App() {
           </select>
         </label>
 
-        <div className="total">
+        {/* Announced, because the count is the answer to the question the
+            screen exists to ask, and changing org changes it silently. */}
+        <div className="total" aria-live="polite">
           <strong>{current ? current.total : '—'}</strong>
           <span>{current && current.total === 1 ? 'disagreement' : 'disagreements'}</span>
         </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {/* Chips stay mounted while rows reload, so the filter that triggered
+          the load does not vanish underneath the cursor that clicked it. */}
+      {current && (
+        <ReasonFilter counts={current.counts} selected={reason} onSelect={setReason} />
+      )}
+
+      {!current && (loading || booting) && (
+        <div className="table-wrap" aria-busy="true">
+          <div className="skeleton" aria-label="Loading disagreements">
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+          </div>
+        </div>
+      )}
 
       {current && (
-        <>
-          {/* Counts come from the unfiltered view, so each chip says how many
-              rows choosing it would give rather than how many are showing. */}
-          <ReasonFilter counts={current.counts} selected={reason} onSelect={setReason} />
+        // Dimmed rather than replaced while a filter or sort reloads: the rows
+        // on screen are still the right org's, and swapping them for a
+        // skeleton on every chip click makes the list flash for no new
+        // information.
+        <div className={loading ? 'busy' : undefined}>
           <DisagreementTable
             rows={current.disagreements}
             sort={sort}
+            reason={reason}
             onSortChange={setSort}
+            onClearFilter={() => setReason(null)}
           />
           <ImportHealth issues={current.issues} />
-        </>
+        </div>
+      )}
+      </>
       )}
       </>
       )}

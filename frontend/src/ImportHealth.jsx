@@ -10,7 +10,11 @@
  */
 export default function ImportHealth({ issues }) {
   if (issues.length === 0) {
-    return <p className="health-empty">Every row in this org imported cleanly.</p>
+    return (
+      <p className="health-empty">
+        <span aria-hidden="true">✓</span> Every row in this org imported cleanly.
+      </p>
+    )
   }
 
   return (
