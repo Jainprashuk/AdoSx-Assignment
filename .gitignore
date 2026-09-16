@@ -19,5 +19,6 @@ frontend/dist/
 
 # Planning material, kept local
 /docs
+/assets
 
 /Progress.md
