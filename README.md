@@ -1,5 +1,12 @@
 # Reconciliation — system A vs system B
 
+## Submission
+
+- [submission/README.md](submission/README.md) — how to run, what it does, API surface
+- [submission/DECISIONS.md](submission/DECISIONS.md) — the ten decisions and the alternatives rejected
+
+---
+
 Finds the records where two systems disagree, one tenant at a time.
 
 Two systems record the same events. They agree on most rows. This finds the
